@@ -54,23 +54,43 @@
     sticky.style.transition = "transform 0.3s ease";
   }
 
-  /* ---- Client-side validation only (Netlify handles submission) ---- */
+  /* ---- Client-side validation + Netlify function submit ---- */
   function initForm() {
     var form = document.querySelector('form[data-funnel="optin"]');
     if (!form) return;
     form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
       var ok = true;
       form.querySelectorAll("input[required]").forEach(function (input) {
         if (!input.checkValidity()) { ok = false; input.setAttribute("aria-invalid", "true"); }
         else { input.removeAttribute("aria-invalid"); }
       });
       if (!ok) {
-        e.preventDefault();
         var first = form.querySelector('[aria-invalid="true"]');
         if (first) first.focus();
         return;
       }
-      // let the native form POST to Netlify proceed
+
+      var btn = form.querySelector('button[type="submit"]');
+      if (btn) { btn.textContent = "Sending\u2026"; btn.disabled = true; }
+
+      var fd = new FormData(form);
+
+      fetch("/.netlify/functions/send-audit", {
+        method: "POST",
+        body: fd
+      }).then(function (r) { return r.json(); }).then(function (res) {
+        if (res.ok) {
+          if (btn) { btn.textContent = "Sent!"; }
+          form.innerHTML = '<div class="center" style="padding:2rem 0"><div class="tick" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><h3>Sent! Check your email.</h3><p style="color:var(--muted)">Your free audit is on its way within 24 hours.</p></div>';
+        } else {
+          throw new Error(res.error || "Server error");
+        }
+      }).catch(function () {
+        if (btn) { btn.textContent = "Send Me the Audit"; btn.disabled = false; }
+        alert("Something went wrong. Please try again or email us at ash8518@gmail.com.");
+      });
     });
   }
 
