@@ -21,7 +21,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500;1,9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
-  <script src="https://smtpjs.com/v3/smtp.js"></script>
 </head>
 <body>
 
@@ -120,11 +119,17 @@
 
             <!-- Sends via SMTP (Gmail) on submit -->
             <form
+              name="audit-request"
               method="POST"
-              action="#audit"
+              data-netlify="true"
+              netlify-honeypot="bot-field"
+              action="/thank-you.html"
               data-funnel="optin"
             >
-              <input type="hidden" name="_to" value="ash8518@gmail.com" />
+              <input type="hidden" name="form-name" value="audit-request" />
+              <p class="field field--hp" aria-hidden="true">
+                <label>Don't fill this out if you're human: <input name="bot-field" tabindex="-1" autocomplete="off" /></label>
+              </p>
 
               <div class="field">
                 <label for="name">Your name</label>

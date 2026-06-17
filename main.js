@@ -54,7 +54,7 @@
     sticky.style.transition = "transform 0.3s ease";
   }
 
-  /* ---- Client-side validation + SMTP email ---- */
+  /* ---- Client-side validation + Netlify form submit ---- */
   function initForm() {
     var form = document.querySelector('form[data-funnel="optin"]');
     if (!form) return;
@@ -75,29 +75,20 @@
       var btn = form.querySelector('button[type="submit"]');
       if (btn) { btn.textContent = "Sending\u2026"; btn.disabled = true; }
 
-      var data = {};
-      form.querySelectorAll("input[name]").forEach(function (input) {
-        data[input.name] = input.value;
-      });
+      var fd = new FormData(form);
 
-      var body = "New Free Audit Request\n\n"
-        + "Name: " + data.name + "\n"
-        + "Business: " + data.business + "\n"
-        + "Email: " + data.email + "\n"
-        + "Phone: " + data.phone + "\n";
-
-      Email.send({
-        Host: "smtp.gmail.com",
-        Username: "ash8518@gmail.com",
-        Password: "uusp valv sxpg oagw",
-        To: "ash8518@gmail.com",
-        From: "ash8518@gmail.com",
-        Subject: "New Free Audit Request - " + data.name + " (" + data.business + ")",
-        Body: body
-      }).then(function (msg) {
-        if (btn) { btn.textContent = "Sent!"; }
-        form.innerHTML = '<div class="center" style="padding:2rem 0"><div class="tick" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><h3>You\u2019re in! Check your email.</h3><p style="color:var(--muted)">Your free audit is on its way within 24 hours.</p></div>';
-      }).catch(function (err) {
+      fetch("/", {
+        method: "POST",
+        headers: { "Accept": "application/json" },
+        body: fd
+      }).then(function (r) {
+        if (r.ok) {
+          if (btn) { btn.textContent = "Sent!"; }
+          form.innerHTML = '<div class="center" style="padding:2rem 0"><div class="tick" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div><h3>You\u2019re in! Check your email.</h3><p style="color:var(--muted)">Your free audit is on its way within 24 hours.</p></div>';
+        } else {
+          throw new Error("Server error");
+        }
+      }).catch(function () {
         if (btn) { btn.textContent = "Send Me the Audit"; btn.disabled = false; }
         alert("Something went wrong. Please try again or email us directly at ash8518@gmail.com.");
       });
