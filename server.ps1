@@ -1,12 +1,12 @@
-# Summit Studio — Local Server (serves static files + SMTP API)
-# Run: powershell -ExecutionPolicy Bypass -File server.ps1
-# Then open http://localhost:3000
+param([switch]$Stop)
+if ($Stop) { Stop-Process -Name powershell -Force -ErrorAction SilentlyContinue; return }
 
 $port = 3000
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $listener = New-Object System.Net.HttpListener
 $listener.Prefixes.Add("http://localhost:$port/")
 $listener.Start()
+
 Write-Host "==================================="
 Write-Host " Summit Studio Server running"
 Write-Host " Open: http://localhost:$port/"
@@ -18,43 +18,52 @@ while ($listener.IsListening) {
   $req = $ctx.Request
   $res = $ctx.Response
 
-  # CORS
+  # Add CORS headers
   $res.Headers.Add("Access-Control-Allow-Origin", "*")
   $res.Headers.Add("Access-Control-Allow-Methods", "POST, OPTIONS")
   $res.Headers.Add("Access-Control-Allow-Headers", "Content-Type")
 
+  # Handle OPTIONS preflight
   if ($req.HttpMethod -eq "OPTIONS") {
-    $res.StatusCode = 204; $res.Close(); continue
+    $res.StatusCode = 204
+    $res.Close()
+    continue
   }
 
-  # --- API: send audit email ---
+  # API endpoint
   if ($req.Url.AbsolutePath -eq "/send-audit" -and $req.HttpMethod -eq "POST") {
     $reader = New-Object System.IO.StreamReader($req.InputStream)
-    $body = $reader.ReadToEnd(); $reader.Close()
-    $data = $body | ConvertFrom-Json
+    $json = $reader.ReadToEnd()
+    $reader.Close()
+    $d = $json | ConvertFrom-Json
 
-    $msgBody = "New Free Audit Request`r`n`r`nName: $($data.name)`r`nBusiness: $($data.business)`r`nEmail: $($data.email)`r`nPhone: $($data.phone)"
+    $subject = "New Free Audit Request - " + $d.name + " (" + $d.business + ")"
+    $body = "New Free Audit Request`r`n`r`nName: $($d.name)`r`nBusiness: $($d.business)`r`nEmail: $($d.email)`r`nPhone: $($d.phone)"
 
     try {
       $smtp = New-Object Net.Mail.SmtpClient("smtp.gmail.com", 587)
       $smtp.EnableSsl = $true
       $smtp.Credentials = New-Object System.Net.NetworkCredential("ash8518@gmail.com", "uusp valv sxpg oagw")
-      $msg = New-Object Net.Mail.MailMessage("ash8518@gmail.com","ash8518@gmail.com","New Free Audit Request — $($data.name) ($($data.business))",$msgBody)
+      $msg = New-Object Net.Mail.MailMessage("ash8518@gmail.com", "ash8518@gmail.com", $subject, $body)
       $smtp.Send($msg)
+
       $res.StatusCode = 200
       $bytes = [Text.Encoding]::UTF8.GetBytes('{"ok":true}')
-      Write-Host "Email sent: $($data.name) — $($data.business)"
+      $res.OutputStream.Write($bytes, 0, $bytes.Length)
+      Write-Host "Email sent: $($d.name) - $($d.business)"
     } catch {
       $res.StatusCode = 500
-      $bytes = [Text.Encoding]::UTF8.GetBytes('{"ok":false,"error":"' + $_.Exception.Message.Replace('"','\"') + '"}')
-      Write-Host "ERROR: $($_.Exception.Message)"
+      $err = $_.Exception.Message
+      $jsonErr = '{"ok":false,"error":"' + $err.Replace('"', '\"') + '"}'
+      $bytes = [Text.Encoding]::UTF8.GetBytes($jsonErr)
+      $res.OutputStream.Write($bytes, 0, $bytes.Length)
+      Write-Host "ERROR: $err"
     }
-    $res.OutputStream.Write($bytes,0,$bytes.Length)
     $res.Close()
     continue
   }
 
-  # --- Serve static files ---
+  # Static files
   $path = $req.Url.AbsolutePath
   if ($path -eq "/") { $path = "/index.html" }
 
@@ -63,22 +72,21 @@ while ($listener.IsListening) {
     $ext = [System.IO.Path]::GetExtension($filePath)
     $mime = @{
       ".html" = "text/html; charset=utf-8"
-      ".css"  = "text/css; charset=utf-8"
-      ".js"   = "application/javascript; charset=utf-8"
-      ".svg"  = "image/svg+xml"
-      ".png"  = "image/png"
-      ".jpg"  = "image/jpeg"
-      ".ico"  = "image/x-icon"
+      ".css" = "text/css; charset=utf-8"
+      ".js" = "application/javascript; charset=utf-8"
+      ".svg" = "image/svg+xml"
+      ".png" = "image/png"
+      ".jpg" = "image/jpeg"
+      ".ico" = "image/x-icon"
     }
-    $contentType = "application/octet-stream"
-    if ($mime.ContainsKey($ext)) { $contentType = $mime[$ext] }
-    $res.ContentType = $contentType
+    $res.ContentType = "application/octet-stream"
+    if ($mime.ContainsKey($ext)) { $res.ContentType = $mime[$ext] }
     $data = [System.IO.File]::ReadAllBytes($filePath)
-    $res.OutputStream.Write($data,0,$data.Length)
+    $res.OutputStream.Write($data, 0, $data.Length)
   } else {
     $res.StatusCode = 404
     $bytes = [Text.Encoding]::UTF8.GetBytes("404 Not Found")
-    $res.OutputStream.Write($bytes,0,$bytes.Length)
+    $res.OutputStream.Write($bytes, 0, $bytes.Length)
   }
   $res.Close()
 }
