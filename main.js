@@ -75,11 +75,15 @@
       var btn = form.querySelector('button[type="submit"]');
       if (btn) { btn.textContent = "Sending\u2026"; btn.disabled = true; }
 
-      var fd = new FormData(form);
+      var fd = new URLSearchParams();
+      form.querySelectorAll("input[name]").forEach(function (input) {
+        if (input.name) fd.append(input.name, input.value);
+      });
 
       fetch("/.netlify/functions/send-audit", {
         method: "POST",
-        body: fd
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: fd.toString()
       }).then(function (r) { return r.json(); }).then(function (res) {
         if (res.ok) {
           if (btn) { btn.textContent = "Sent!"; }
