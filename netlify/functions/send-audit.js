@@ -17,7 +17,7 @@ exports.handler = async function (event) {
     } else {
       const parts = (event.body || "").split("&");
       for (const p of parts) {
-        const [k, v] = p.split("=").map(decodeURIComponent);
+        const [k, v] = p.split("=").map(function(s) { return decodeURIComponent(s.replace(/\+/g, " ")); });
         if (k === "name") name = v || "";
         else if (k === "business") business = v || "";
         else if (k === "email") emailAddr = v || "";
@@ -31,7 +31,7 @@ exports.handler = async function (event) {
       secure: false,
       auth: {
         user: "ash8518@gmail.com",
-        pass: "uusp valv sxpg oagw",
+        pass: "ztwn usek upfo rbdg",
       },
     });
 
