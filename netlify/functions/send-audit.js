@@ -1,4 +1,5 @@
 const nodemailer = require("nodemailer");
+const qs = require("querystring");
 
 exports.handler = async function (event) {
   if (event.httpMethod !== "POST") {
@@ -6,11 +7,12 @@ exports.handler = async function (event) {
   }
 
   try {
-    const params = new URLSearchParams(event.body);
-    const name = params.get("name") || "";
-    const business = params.get("business") || "";
-    const email = params.get("email") || "";
-    const phone = params.get("phone") || "";
+    const body = event.body || "";
+    const data = qs.parse(body);
+    const name = data.name || "";
+    const business = data.business || "";
+    const emailAddr = data.email || "";
+    const phone = data.phone || "";
 
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
@@ -30,7 +32,7 @@ exports.handler = async function (event) {
         "New Free Audit Request\n\n"
         + "Name: " + name + "\n"
         + "Business: " + business + "\n"
-        + "Email: " + email + "\n"
+        + "Email: " + emailAddr + "\n"
         + "Phone: " + phone + "\n",
     });
 
